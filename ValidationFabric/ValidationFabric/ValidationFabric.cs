@@ -58,7 +58,7 @@ namespace ValidationFabric
         {
             if (chain.IsCompiled)
                 return chain;
-            return chain.CompileTree(this._chains);
+            return chain.CompileTree(this);
         }
         private IEnumerable<ValidationChain<T>> Compile(IEnumerable<ValidationChain<T>> chain)
         {
@@ -71,136 +71,113 @@ namespace ValidationFabric
 
     internal static class ValidationChainCompiler
     {
+        internal class ExpressionBag<T>
+        {
+            private ParameterExpression _parameter;
+            public ParameterExpression Parameter => _parameter??
+                   (_parameter=Expression.Parameter(typeof(T), "entity"));
+
+            private Expression _success;
+            public Expression Success => _success??
+                   (_success=Expression.Constant(ValidationResult.Success, typeof(ValidationResult)));
+
+            private Expression _zeroConstant;
+            public Expression ZeroConstant => _zeroConstant??(_zeroConstant=Expression.Constant(0, typeof(int)));
+
+            private ParameterExpression _variable;
+            public ParameterExpression Variable => _variable??
+                                                   (_variable=Expression.Variable(typeof(ValidationResult), "var"));
+
+        }
+
+
+        internal static Expression CompileLinkExpression<T>(this ValidationLink<T> link, Expression nextLink,
+            ValidationFabric<T> fabric, ExpressionBag<T> bag)
+        {
+            switch (link.Type)
+            {
+                case ValidationLink<T>.LinkType.Expression:
+                    Expression<Func<T, ValidationResult>> expr = 
+                        (e) =>
+                        link.Link.Compile().Invoke(e)
+                            ? Expression.Lambda<Func<T, ValidationResult>>(nextLink, bag.Parameter).Compile().Invoke(e)
+                            : ValidationResult.Failure(link.ErrorMessages.ToArray());
+
+                    return Expression.Invoke(expr, bag.Parameter);
+
+                case ValidationLink<T>.LinkType.ChainName:
+                    if (fabric == null)
+                        throw new ArgumentException("Cannot compile a chan that references another chain from the fabric when fabric is null", nameof(fabric));
+                    if (fabric[link.ChainName] is ValidationChain<T> c)
+                    {
+
+                        Expression<Func<T, ValidationResult>> caller = 
+                            (e) => 
+                                (c.Invoke(e));
+
+                        var invoker = Expression.Invoke(caller, bag.Parameter);
+                        
+                        var block = Expression.Block(
+                            new ParameterExpression[] { bag.Variable }, //var
+                            Expression.Assign(bag.Variable, invoker), //previous
+                            Expression.IfThenElse(//if else
+                                Expression.Equal(bag.Variable, bag.Success),
+                                Expression.Assign(bag.Variable,
+                                    Expression.Invoke(
+                                        Expression.Lambda<Func<T, ValidationResult>>(
+                                            nextLink,
+                                            bag.Parameter),
+                                        bag.Parameter)),//success - next
+                                Expression.Assign(bag.Variable,
+                                    Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray())))),//fail -error
+                            bag.Variable);
+
+                        return Expression.Invoke(
+                            Expression.Lambda(
+                                block,
+                                bag.Parameter),
+                            bag.Parameter);
+                        
+                    }
+                    throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.");
+                    
+                default:
+                    throw new ArgumentException($"Unknown link type {link.Type}");
+                    break;
+            }
+        }
 
         internal static ValidationChain<T> CompileTree<T>(this ValidationChain<T> chain,
-            Dictionary<string, ValidationChain<T>> fabric)
+            ValidationFabric<T> fabric)
         {
             if (chain.IsCompiled)
                 return chain;
+            
+            var bag=new ExpressionBag<T>();
+            
 
-            var param = Expression.Parameter(typeof(T), "e");
-            var next = Expression.Parameter(typeof(Expression<Func<T, ValidationResult>>), "next");
-            var end = Expression.Constant(ValidationResult.Success, typeof(ValidationResult));
-
-            Expression Exp(ValidationLink<T> link,Expression nxt)
-            {
-                switch (link.Type)
-                {
-                    case ValidationLink<T>.LinkType.Expression:
-                        //object, next link, result
-                        Expression<
-                            Func<T,ValidationResult>
-                        > expr = (e) =>
-                            link.Link.Compile().Invoke(e)
-                                ? Expression.Lambda<Func<T,ValidationResult>>(nxt,param).Compile().Invoke(e)
-                                : ValidationResult.Failure(link.ErrorMessages.ToArray());
-                        return Expression.Invoke(expr, param);
-                    case ValidationLink<T>.LinkType.ChainName:
-                        if (fabric[link.ChainName] is ValidationChain<T> c)
-                        {
-                            var tmp = Expression.Variable(typeof(ValidationResult), "tmp_res");
-
-                            Expression<Func<T, ValidationResult>> caller = (e) => (c.Invoke(e));
-                            var invoker = Expression.Invoke(caller, param);
-
-                            
-
-                            var block = Expression.Block(
-                                new ParameterExpression[] {tmp}, //var
-                                Expression.Assign(tmp, invoker), //previous
-                                Expression.IfThenElse(//if else
-                                    Expression.Equal(tmp, Expression.Constant(ValidationResult.Success)),
-                                    Expression.Assign(tmp, Expression.Constant("next")),//success - next
-                                    Expression.Assign(tmp, Expression.Constant("fail"))),//fail -error
-                                tmp);
-                            return Expression.Invoke(Expression.Lambda(block, param),param);
-
-                            //Expression<
-                            //    Func<T, ValidationResult>
-                            //> expr2 = (e) => (c.Invoke(e)  == ValidationResult.Success)
-                            //        ? Expression.Lambda<Func<T, ValidationResult>>(nxt, param).Compile().Invoke(e)
-                            //        : ValidationResult.Failure(link.ErrorMessages.ToArray());
-
-                            //return Expression.Invoke(block, param);
-
-                        }
-                        throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.");
-                        break;
-                       
-                    default:
-                        return null;
-                        break;
-                }
-            }
-
-            Func<T, ValidationResult> _expression;
+            Func<T, ValidationResult> expression;
             if (chain.InvocationChain.Count == 0)
-                _expression=x=>ValidationResult.Success;
+                expression=x=>ValidationResult.Success;
             else
             {
-                var temp = Exp(chain.InvocationChain[chain.InvocationChain.Count - 1],end);
+                var temp =
+                    (chain.InvocationChain[chain.InvocationChain.Count - 1]).CompileLinkExpression(bag.Success, fabric,bag);
+
                 for (int i = chain.InvocationChain.Count - 2; i >= 0; i--)
                 {
-                    temp = Exp(chain.InvocationChain[i], temp);
+                    temp = (chain.InvocationChain[i]).CompileLinkExpression(temp, fabric,bag);
                 }
-                _expression = Expression.Lambda<Func<T, ValidationResult>>(temp,param)
+
+                expression = Expression.Lambda<Func<T, ValidationResult>>(temp,bag.Parameter)
                     .Compile();
             }
             
-                chain.Compile(_expression);
+                chain.Compile(expression);
                 return chain;
         }
 
-
-        internal static ValidationChain<T> CompileChain<T>(this ValidationChain<T> chain,
-            Dictionary<string, ValidationChain<T>> fabric)
-        {
-            if (chain.IsCompiled)
-                return chain;
-
-            var param = Expression.Parameter(typeof(T), "obj");
-
-            Expression ExtractExpression(ValidationLink<T> link)
-            {
-                
-                switch (link.Type)
-                {
-                    case ValidationLink<T>.LinkType.Expression:
-                        Expression<Func<T, ValidationResult>> vr = (t) =>
-                            link.Link.Compile().Invoke(t)
-                                ? ValidationResult.Success
-                                : ValidationResult.Failure(link.ErrorMessages.ToArray());
-                        var ix= Expression.Invoke(vr, param);
-                        return ix;
-                    case ValidationLink<T>.LinkType.ChainName:
-                        if (fabric[link.ChainName] is ValidationChain<T> c)
-                        {
-                            var xxp = (Expression<Func<T, ValidationResult>>)(p => c.CompiledExpression(p));
-                            return Expression.Invoke(xxp, param);
-                        }
-                        throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.");
-                        
-                    default:
-                        return null;
-                }
-            }
-
-
-            Func<T, ValidationResult> _expression;
-            if (chain.InvocationChain.Count == 0)
-                _expression = x => ValidationResult.Success;
-            else
-            {
-                var temp = ExtractExpression(chain.InvocationChain[chain.InvocationChain.Count - 1]);
-                for (int i = chain.InvocationChain.Count - 2; i >= 0; i--)
-                {
-                    temp = Expression.AndAlso(ExtractExpression(chain.InvocationChain[i]), param);
-                }
-                _expression = Expression.Lambda<Func<T, ValidationResult>>(temp, param).Compile();
-            }
-            chain.Compile(_expression);
-            return chain;
-        }
+        
     }
 
     public class ValidationChain<T>

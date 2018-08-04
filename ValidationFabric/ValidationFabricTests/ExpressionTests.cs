@@ -46,11 +46,12 @@ namespace ValidationFabricTests
         public void FabricSimpleValidation()
         {
             ValidationFabric<object> fabric=new ValidationFabric<object>();
+            fabric["chain0"] = new ValidationChain<object>().AddLink(x => true).AddErrorMessage("c101");
             fabric["chain1"] = new ValidationChain<object>().AddLink(x => true).AddErrorMessage("c11")
                 .AddLink(x => false).AddErrorMessage("c12");
-            fabric["chain2"] = new ValidationChain<object>().AddLink(x=>true)
+            fabric["chain2"] = new ValidationChain<object>().AddLink(x=>true).AddChain("chain0")
                 .AddChain("chain1").AddErrorMessage("chainerr");
-
+            fabric.CompileAOT();
             var r1 = fabric["chain1"].Invoke(null);
             var r2 = fabric["chain2"].Invoke(null);
 
@@ -92,9 +93,7 @@ namespace ValidationFabricTests
                     Expression.Assign(tmp, Expression.Constant(ValidationResult.Failure("ok"))),
                     Expression.Assign(tmp, Expression.Constant(ValidationResult.Failure("not ok")))),
                 tmp);
-
-            var x=Expression.Condition(Expression.Lambda<Func<ValidationResult>>(tmp).Compile().Invoke().ErrorMessages.Count==0)
-
+            
 
             var lambda = Expression.Lambda<Func<object, ValidationResult>>(block, param).Compile();
             var result = lambda.Invoke(new object());
