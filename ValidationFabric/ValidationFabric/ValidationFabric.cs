@@ -98,28 +98,31 @@ namespace ValidationFabric
                     case ValidationLink<T>.LinkType.ChainName:
                         if (fabric[link.ChainName] is ValidationChain<T> c)
                         {
-                            //Expression<Func<T, ValidationResult>> res = x => c.Invoke(x);
-                            //Expression<Func<ValidationResult, bool>> tv = v => v == ValidationResult.Success;
+                            var tmp = Expression.Variable(typeof(ValidationResult), "tmp_res");
 
+                            Expression<Func<T, ValidationResult>> caller = (e) => (c.Invoke(e));
+                            var invoker = Expression.Invoke(caller, param);
 
-                            //var p1 = Expression.Variable(typeof(ValidationResult), "vr");
-                            //var block = Expression.Block(
-                            //    new ParameterExpression[] { p1 },
-                            //    Expression.Assign(p1, Expression.Invoke(res, param)),
-                            //    Expression.IfThenElse(tv,Expression.Assign(p1,
-                            //        Expression.Invoke(Expression.Lambda<Func<T, ValidationResult>>(nxt, param))),
-                            //        Expression.Invoke(p1,))
-                            //    );
-
-
-
-                            Expression<
-                                Func<T, ValidationResult>
-                            > expr2 = (e) => (c.Invoke(e)  == ValidationResult.Success)
-                                    ? Expression.Lambda<Func<T, ValidationResult>>(nxt, param).Compile().Invoke(e)
-                                    : ValidationResult.Failure(link.ErrorMessages.ToArray());
-                            return Expression.Invoke(expr2, param);
                             
+
+                            var block = Expression.Block(
+                                new ParameterExpression[] {tmp}, //var
+                                Expression.Assign(tmp, invoker), //previous
+                                Expression.IfThenElse(//if else
+                                    Expression.Equal(tmp, Expression.Constant(ValidationResult.Success)),
+                                    Expression.Assign(tmp, Expression.Constant("next")),//success - next
+                                    Expression.Assign(tmp, Expression.Constant("fail"))),//fail -error
+                                tmp);
+                            return Expression.Invoke(Expression.Lambda(block, param),param);
+
+                            //Expression<
+                            //    Func<T, ValidationResult>
+                            //> expr2 = (e) => (c.Invoke(e)  == ValidationResult.Success)
+                            //        ? Expression.Lambda<Func<T, ValidationResult>>(nxt, param).Compile().Invoke(e)
+                            //        : ValidationResult.Failure(link.ErrorMessages.ToArray());
+
+                            //return Expression.Invoke(block, param);
+
                         }
                         throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.");
                         break;

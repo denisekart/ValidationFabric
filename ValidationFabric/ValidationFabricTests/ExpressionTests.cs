@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection.Emit;
 using ValidationFabric;
 using Xunit;
 
@@ -70,10 +71,33 @@ namespace ValidationFabricTests
                 new ParameterExpression[] {p1},
                 Expression.Assign(p1, Expression.Invoke(par, px)),
                 Expression.Assign(p1,Expression.Constant(ValidationResult.Indeterminate)));
-
-            var result = Expression.Lambda(block,px).Compile();
+            
+            var result = Expression.Lambda(block,px);
             var tresult = Expression.Lambda<Func<object, ValidationResult>>(block, px).Compile();
             var act = tresult.Invoke(new object());
+        }
+
+        [Fact]
+        public void CreateExpressionWithVariablesTest2()
+        {
+            var tmp = Expression.Variable(typeof(ValidationResult), "tmp_res");
+            var param = Expression.Parameter(typeof(object), "e");
+            var ret = Expression.Parameter(typeof(ValidationResult));
+            Expression<Func<object, ValidationResult>> next = x => ValidationResult.Success;
+            var block = Expression.Block(
+                new ParameterExpression[] { tmp },
+                Expression.Assign(tmp, Expression.Invoke(next, param)),
+                Expression.IfThenElse(
+                    Expression.Equal(tmp,Expression.Constant(ValidationResult.Success)),
+                    Expression.Assign(tmp, Expression.Constant(ValidationResult.Failure("ok"))),
+                    Expression.Assign(tmp, Expression.Constant(ValidationResult.Failure("not ok")))),
+                tmp);
+
+            var x=Expression.Condition(Expression.Lambda<Func<ValidationResult>>(tmp).Compile().Invoke().ErrorMessages.Count==0)
+
+
+            var lambda = Expression.Lambda<Func<object, ValidationResult>>(block, param).Compile();
+            var result = lambda.Invoke(new object());
         }
     }
 }
