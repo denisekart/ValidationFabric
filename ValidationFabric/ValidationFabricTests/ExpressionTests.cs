@@ -34,7 +34,42 @@ namespace ValidationFabricTests
             Assert.Equal(ValidationResult.Success, result);
         }
 
+        [Fact]
+        public void RecursiveCompileTest()
+        {
+            var fab=new ValidationFabric<Test>();
 
+            var chain= new ValidationChain<Test>().AddLink(x => true).AddLink(x=>true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
+                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true);
+            //var chain2 = new ValidationChain<Test>().AddLink(x => true).AddErrorMessage("c101");
+            //fab.AddChain(chain).AddChain(chain2);
+
+            chain.CompileRecursive(fab);
+            var res=chain.Invoke2(null);
+
+
+            Stopwatch sw = Stopwatch.StartNew();
+            for (int i = 0; i < 10000; i++)
+                res = chain.Invoke2(null);
+            sw.Stop();
+            var total = sw.ElapsedMilliseconds;
+        }
 
         [Fact]
         public void FabricSimpleValidation()
@@ -45,7 +80,7 @@ namespace ValidationFabricTests
                 .AddLink(x => false);
             fabric["chain2"] = new ValidationChain<object>().AddLink(x => true).AddChain("chain0")
                 .AddChain("chain1").AddErrorMessage("chainerr");
-
+            
 
             //c12 c11 c21
 

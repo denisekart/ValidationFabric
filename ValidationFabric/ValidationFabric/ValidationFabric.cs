@@ -25,7 +25,8 @@ namespace ValidationFabric
             get
             {
                 if (_chains.ContainsKey(key))
-                    return Compile(_chains[key]);
+                    //return Compile(_chains[key]);
+                    return (_chains[key]);
                 return null;
             }
             set
@@ -148,43 +149,5 @@ namespace ValidationFabric
         public object Instance { get; set; }
         public string Propertyname { get; set; }
         public object Tag { get; set; }
-    }
-
-    public class ValidationLink<T>
-    {
-        public enum LinkType
-        {
-            Expression,
-            ChainName,
-        }
-
-        public LinkType Type { get; set; }
-
-        /// <summary>
-        /// The validator for the link
-        /// </summary>
-        public virtual Expression<Func<T,bool>> Link { get; private set; }
-        /// <summary>
-        /// The name of the chain to invoke
-        /// </summary>
-        public string ChainName { get; private set; }
-
-
-        /// <summary>
-        /// The error messages produced on link failure 
-        /// </summary>
-        public List<string> ErrorMessages { get;  }=new List<string>();
-
-        public static explicit operator ValidationLink<T>(Func<T, bool> l)
-        {
-            var lnk = new ValidationLink<T> {Type = LinkType.Expression, Link = x=>l.Invoke(x)};
-            return lnk;
-        }
-        
-        public static explicit operator ValidationLink<T>(string l)
-        {
-            var lnk = new ValidationLink<T> { Type = LinkType.ChainName, ChainName = l};
-            return lnk;
-        }
     }
 }

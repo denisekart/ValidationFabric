@@ -20,6 +20,11 @@ namespace ValidationFabric
             public Expression Success => _success??
                                          (_success=Expression.Constant(ValidationResult.Success, typeof(ValidationResult)));
 
+
+            private Expression<Func<T,ValidationResult>> _successLambda;
+            public Expression<Func<T, ValidationResult>> SuccessLambda => _successLambda ??
+                                         (_successLambda = x=>ValidationResult.Success);
+            
             private Expression _zeroConstant;
             public Expression ZeroConstant => _zeroConstant??(_zeroConstant=Expression.Constant(0, typeof(int)));
 
@@ -169,6 +174,56 @@ namespace ValidationFabric
             return chain;
         }
 
-        
+
+        private static Expression<Func<T,ValidationResult>> CreateExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
+        {
+            var block = Expression.Block(new ParameterExpression[] {bag.Variable},
+                Expression.IfThenElse(Expression.Invoke(link.Link, bag.Parameter),
+                    Expression.Assign(bag.Variable,Expression.Invoke(next,bag.Parameter)),
+                    Expression.Assign(bag.Variable,
+                        Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray()),typeof(ValidationResult)))
+                    ),
+                bag.Variable
+                );
+
+            var lambda = Expression.Lambda<Func<T, ValidationResult>>(block, bag.Parameter);
+
+            //Expression<Func<T, ValidationResult>> expr =
+            //    (e) =>
+            //        link.Link.Compile().Invoke(e)
+            //            ? Expression.Lambda<Func<T, ValidationResult>>(nextLink, bag.Parameter).Compile().Invoke(e)
+            //            : ValidationResult.Failure(link.ErrorMessages.ToArray());
+
+            return lambda;
+        }
+
+        internal static void CompileRecursive<T>(this ValidationChain<T> chain,
+            ValidationFabric<T> fabric)
+        {
+            if (chain.IsCompiled)
+                return;
+
+            var bag=new ExpressionBag<T>();
+
+
+
+            var temp =
+                CreateExpression<T>(chain.InvocationChain[chain.InvocationChain.Count - 1],bag.SuccessLambda,bag,fabric);
+
+            for (int i = chain.InvocationChain.Count - 2; i >= 0; i--)
+            {
+                temp = CreateExpression<T>(chain.InvocationChain[i],temp,bag,fabric);
+            }
+
+            chain.Expression = temp;
+
+            //var expression = temp.Compile();
+
+
+            
+            //return expression;
+
+        }
+
     }
 }

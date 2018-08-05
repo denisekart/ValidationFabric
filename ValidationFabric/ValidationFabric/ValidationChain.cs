@@ -48,42 +48,43 @@ namespace ValidationFabric
         //private  MyDelegate _delegate = 
         //    (MyDelegate)Delegate.CreateDelegate(typeof(MyDelegate),);
 
-        delegate ValidationResult MyDelegate(T item);
+        delegate ValidationResult InvocationDelegate(T item);
 
-        private MyDelegate _del;
-        public void InvokeTest(T item)
+        private InvocationDelegate _invocator;
+        private Func<T, ValidationResult> _invocatorFunc;
+        public ValidationResult Invoke2(T item)
         {
-
-
-            var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
-                new AssemblyName("MyAssembly_" + Guid.NewGuid().ToString("N")),
-                AssemblyBuilderAccess.Run);
-
-            var moduleBuilder = assemblyBuilder.DefineDynamicModule("Module");
-
-            var typeBuilder = moduleBuilder.DefineType("MyType_" + Guid.NewGuid().ToString("N"),
-                TypeAttributes.Public);
-
-            var methodBuilder = typeBuilder.DefineMethod("MyMethod",
-                MethodAttributes.Public | MethodAttributes.Static);
-
-            Expression<Func<T, ValidationResult>> xx = x => CompiledExpression.Invoke(x);
-            //var xxx = Expression.Lambda<Func<T, ValidationResult>>(xx, true, Expression.Parameter(typeof(T),"p"));
-            xx.CompileToMethod(methodBuilder);
-            var resultingType = typeBuilder.CreateType();
-
-            _del =(MyDelegate) Delegate.CreateDelegate(xx.Type,
-                resultingType.GetMethod("MyMethod"));
-            var res=_del(item);
+            if (!IsCompiled)
+                throw new AccessViolationException("This chain has not been compiled yet.");
+            CreateDelegate();
+            return _invocator(item);
+            //return _invocatorFunc.Invoke(item);
         }
 
+        private void CreateDelegate()
+        {
+            if (_invocator != null)
+                return;
+            _invocator = new InvocationDelegate(Expression.Compile());
+            //_invocatorFunc = Expression.Compile();
+        }
+
+
+
+        [Obsolete]
         public ValidationResult Invoke(T item)
         {
             if (!IsCompiled)
                 throw new AccessViolationException("This chain has not been compiled yet.");
             return CompiledExpression(item);
         }
-        public ValidationChain<T> AddLink(Func<T, bool> link)
+
+        public ValidationChain<T> AddLink(ValidationLink<T> link)
+        {
+            InvocationChain.Add(link);
+            return this;
+        }
+        public ValidationChain<T> AddLink(Expression<Func<T, bool>> link)
         {
             ValidateAccess();
             InvocationChain.Add((ValidationLink<T>)link);
@@ -133,7 +134,10 @@ namespace ValidationFabric
         /// The invocation chain used for validation
         /// </summary>
         internal List<ValidationLink<T>> InvocationChain { get; } = new List<ValidationLink<T>>();
+
+        [Obsolete]
         internal Func<T,ValidationResult> CompiledExpression { get; private set; }
+        [Obsolete]
         internal void Compile(Func<T, ValidationResult> func)
         {
             ValidateAccess();
@@ -161,6 +165,20 @@ namespace ValidationFabric
         private Func<T, object> _activationMember;
         private readonly List<string> _floatingMessages=new List<string>();
         private bool _locked = false;
+        
 
+        private Expression<Func<T, ValidationResult>> _expression;
+
+        internal Expression<Func<T, ValidationResult>> Expression
+        {
+            get => _expression;
+            set
+            {
+                ValidateAccess();
+                _expression = value;
+                if (_expression != null)
+                    _locked = true;
+            }
+        }
     }
 }
