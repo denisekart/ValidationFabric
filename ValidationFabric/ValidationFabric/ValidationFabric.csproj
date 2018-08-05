@@ -40,6 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ValidationChain.cs" />
+    <Compile Include="ValidationChainCompiler.cs" />
     <Compile Include="ValidationFabric.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ValidationResult.cs" />
