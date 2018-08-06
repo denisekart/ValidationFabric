@@ -25,7 +25,6 @@ namespace ValidationFabric
             get
             {
                 if (_chains.ContainsKey(key))
-                    //return Compile(_chains[key]);
                     return (_chains[key]);
                 return null;
             }
@@ -64,7 +63,7 @@ namespace ValidationFabric
                     throw new ArgumentException("The item cannot be null",nameof(item));
 
                 var m = member?.Invoke(item);
-                return Compile(_chains.Values
+                return (_chains.Values
                     .Where(x =>
                     {
                         var am = x.ActivationMember(item);
@@ -109,7 +108,7 @@ namespace ValidationFabric
         }
         public ValidationResult Validate(T item, Func<T, object> member)
         {
-            foreach (var validationChain in this[item,member])
+            foreach (var validationChain in Compile(this[item,member]))
             {
                 var result = validationChain.Invoke(item);
                 if (result != ValidationResult.Success)
@@ -118,12 +117,22 @@ namespace ValidationFabric
             return ValidationResult.Success;
         }
 
+        public ValidationResult Validate(T item)
+        {
+            foreach (var validationChain in Compile(this[item, null]))
+            {
+                var result = validationChain.Invoke(item);
+                if (result != ValidationResult.Success)
+                    return result;
+            }
+            return ValidationResult.Success;
+        }
 
         private ValidationChain<T> Compile(ValidationChain<T> chain)
         {
-            if (chain.IsCompiled)
-                return chain;
-            return chain.CompileTree(this);
+            if (!chain.IsCompiled)
+                chain.CompileRecursive(this);
+            return chain;
         }
         private IEnumerable<ValidationChain<T>> Compile(IEnumerable<ValidationChain<T>> chain)
         {
@@ -143,11 +152,5 @@ namespace ValidationFabric
         public static ValidationChain<T> EmptyChain<T>(string name)=>new ValidationChain<T>{Name = name};
         public static ValidationChain<T> EmptyChain<T>()=>new ValidationChain<T>();
     }
-
-    public class ValidationContext
-    {
-        public object Instance { get; set; }
-        public string Propertyname { get; set; }
-        public object Tag { get; set; }
-    }
+    
 }

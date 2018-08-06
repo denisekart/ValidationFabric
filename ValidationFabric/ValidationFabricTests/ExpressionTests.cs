@@ -12,27 +12,7 @@ namespace ValidationFabricTests
 {
     public class ExpressionTests
     {
-        [Fact]
-        public void ExpressionCompileSimpleTest()
-        {
-            ValidationChain<object> chain = new ValidationChain<object>();
-            chain.AddLink(x => true).AddErrorMessage("test");
-            var invoker = chain.CompileTree(null);
-            var result = invoker.Invoke(new object());
-            //invoker.InvokeTest(new object());
-            Assert.Equal(ValidationResult.Success, result);
-        }
 
-
-        [Fact]
-        public void ExpressionCompileMultipleLinksSuccessTest()
-        {
-            ValidationChain<object> chain = new ValidationChain<object>();
-            chain.AddLink(x => true).AddErrorMessage("test").AddLink(x => true).AddErrorMessage("ok");
-            var invoker = chain.CompileTree(null);
-            var result = invoker.Invoke(new object());
-            Assert.Equal(ValidationResult.Success, result);
-        }
 
         [Fact]
         public void RecursiveCompileTest()
@@ -61,15 +41,77 @@ namespace ValidationFabricTests
             //fab.AddChain(chain).AddChain(chain2);
 
             chain.CompileRecursive(fab);
-            var res=chain.Invoke2(null);
+            var res=chain.Invoke(null);
 
 
             Stopwatch sw = Stopwatch.StartNew();
             for (int i = 0; i < 10000; i++)
-                res = chain.Invoke2(null);
+                res = chain.Invoke(null);
             sw.Stop();
             var total = sw.ElapsedMilliseconds;
         }
+
+
+        [Fact]
+        public void RecursiveCompileChainNameLinkTest()
+        {
+            var fab=new ValidationFabric<Test>();
+            fab.AddChain(ValidationChain.EmptyChain<Test>("c1").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c2").AddLink(x => true).AddChain("c1"))
+                .AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => true).AddChain("c2"))
+                .AddChain(ValidationChain.EmptyChain<Test>("c4").AddLink(x => true).AddChain("c3"))
+                .AddChain(ValidationChain.EmptyChain<Test>("c5").AddLink(x => true).AddChain("c4"))
+                .AddChain(ValidationChain.EmptyChain<Test>("c6").AddLink(x => true).AddChain("c5"))
+                .AddChain(ValidationChain.EmptyChain<Test>("c7").AddLink(x => true).AddChain("c6"));
+            fab["c7"].CompileRecursive(fab);
+
+            var result=fab["c7"].Invoke(null);
+
+
+
+            Stopwatch sw = Stopwatch.StartNew();
+            for (int i = 0; i < 10000; i++)
+                result = fab["c7"].Invoke(null);
+            sw.Stop();
+            var total = sw.ElapsedMilliseconds;
+
+        }
+
+
+        [Fact]
+        public void RecursiveCompileLogicalOrLinkTest()
+        {
+            var fab = new ValidationFabric<Test>();
+            fab.AddChain(ValidationChain.EmptyChain<Test>("c1").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c2").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c4").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c5").AddLink(x => true))
+                .AddChain(ValidationChain.EmptyChain<Test>("c6").AddLink(x => true)
+                    .AddLink(ValidationLink<Test>.Expression(x => true) ^
+                             ValidationLink<Test>.Expression(x => true)))
+                .AddChain(ValidationChain.EmptyChain<Test>("c7").AddLink(x => true)
+                    .AddLink(ValidationLink<Test>.Expression(x=>true) | 
+                             ValidationLink<Test>.Expression(x => true)));
+            //fab["c7"].CompileRecursive(fab);
+
+            //var result = fab["c7"].Invoke2(null);
+
+            fab["c6"].CompileRecursive(fab);
+
+            var result = fab["c6"].Invoke(null);
+
+
+
+
+            Stopwatch sw = Stopwatch.StartNew();
+            for (int i = 0; i < 10000; i++)
+                result = fab["c6"].Invoke(null);
+            sw.Stop();
+            var total = sw.ElapsedMilliseconds;
+
+        }
+
 
         [Fact]
         public void FabricSimpleValidation()
@@ -80,11 +122,14 @@ namespace ValidationFabricTests
                 .AddLink(x => false);
             fabric["chain2"] = new ValidationChain<object>().AddLink(x => true).AddChain("chain0")
                 .AddChain("chain1").AddErrorMessage("chainerr");
-            
+
 
             //c12 c11 c21
 
-            var result = fabric["chain2"].Invoke(new object());
+            Assert.Throws<AccessViolationException>(() =>
+            {
+                var result = fabric["chain2"].Invoke(new object());
+            });
 
 
         }
@@ -133,6 +178,9 @@ namespace ValidationFabricTests
                 var r2 = fab.Validate(t, x => x.P2);
                 var r3 = fab.Validate(t, x => x.P3);
 
+                var r11 = fab.Validate(t);
+                var r21 = fab.Validate(t);
+                var r31 = fab.Validate(t);
             }
 
 
@@ -150,12 +198,5 @@ namespace ValidationFabricTests
         //        test => ValidationResult.Success, new ValidationChainCompiler.ExpressionBag<Test>());
 
         //}
-    }
-
-    public class Test
-    {
-        public string P1 { get; set; }
-        public string P2 { get; set; }
-        public int P3 { get; set; }
     }
 }

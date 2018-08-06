@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -32,171 +34,310 @@ namespace ValidationFabric
             public ParameterExpression Variable => _variable??
                                                    (_variable=Expression.Variable(typeof(ValidationResult), "var"));
 
+            private ParameterExpression _variable2;
+            public ParameterExpression Variable2 => _variable2 ??
+                                                   (_variable2 = Expression.Variable(typeof(ValidationResult), "var2"));
+
         }
 
-        //public static void CreateWrapper<T>(
-        //    Func<T,ValidationResult> inner,
-        //    Func<T, ValidationResult> outer,
-        //    ExpressionBag<T> bag
-        //)
-        //{
-        //    Expression body=Expression.(
-        //        Expression.Lambda<Func<T,ValidationResult>>
-        //            (Expression.Constant(inner),bag.Parameter),
-        //        inner.Method,
-        //        bag.Parameter);
-            
-
-        //}
-
-        //static Delegate CreateBehaviorCallDelegate(
-        //    Delegate currentBehavior,
-        //    MethodInfo methodInfo,
-        //    ParameterExpression outerContextParam,
-        //    Delegate previous
-        //{
-        //    // Creates expression for `currentBehavior.Invoke(outerContext, next)`
-        //    Expression body = Expression.Call(
-        //        instance: Expression.Constant(currentBehavior),
-        //        method: methodInfo,
-        //        arg0: outerContextParam,
-        //        arg1: Expression.Constant(previous));
-
-        //    // Creates lambda expression `outerContext => currentBehavior.Invoke(outerContext, next)`
-        //    var lambdaExpression = Expression.Lambda(body, outerContextParam);
-
-        //    // Compile the lambda expression to a Delegate
-        //    return lambdaExpression.Compile();
-        //}
-
-        //[DebuggerStepThrough]
-        internal static Expression CompileLinkExpression<T>(this ValidationLink<T> link, Expression nextLink,
-            ValidationFabric<T> fabric, ExpressionBag<T> bag)
+        [DebuggerStepThrough]
+        private static Expression<Func<T,ValidationResult>> CreateExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
         {
+            Expression block=bag.SuccessLambda;
             switch (link.Type)
             {
                 case ValidationLink<T>.LinkType.Expression:
-                    //ta je počasen
-                    Expression<Func<T, ValidationResult>> expr = 
-                        (e) =>
-                            link.Link.Compile().Invoke(e)
-                                ? Expression.Lambda<Func<T, ValidationResult>>(nextLink, bag.Parameter).Compile().Invoke(e)
-                                : ValidationResult.Failure(link.ErrorMessages.ToArray());
-
-                    return Expression.Invoke(expr, bag.Parameter);
-
-                case ValidationLink<T>.LinkType.ChainName:
-                    if (fabric == null)
-                        throw new ArgumentException("Cannot compile a chan that references another chain from the fabric when fabric is null", nameof(fabric));
-                    if (fabric[link.ChainName] is ValidationChain<T> c)
-                    {
-
-                        Expression<Func<T, ValidationResult>> caller = 
-                            (e) => 
-                                (c.Invoke(e));
-
-                        var invoker = Expression.Invoke(caller, bag.Parameter);
-
-                        Expression<Func<ValidationResult, int>> errc = v =>
-                            v.ErrorMessages == null ? 0 : v.ErrorMessages.Count;
-
-
-                        //1. var=execute previous
-                        //2. if success then invoke next link
-                        //3. else
-                        //if errored chain has any error messages
-                        //then return those messages
-                        //else return the messages from the link
-                        var block = Expression.Block(
-                            new ParameterExpression[] { bag.Variable }, //var
-                            Expression.Assign(bag.Variable, invoker), //previous
-                            Expression.IfThenElse(//if else
-                                Expression.Equal(bag.Variable, bag.Success),
-                                Expression.Assign(bag.Variable,
-                                    Expression.Invoke(
-                                        Expression.Lambda<Func<T, ValidationResult>>(
-                                            nextLink,true,
-                                            bag.Parameter),
-                                        bag.Parameter)),//success - next
-                                Expression.IfThen(
-                                    Expression.Equal(bag.ZeroConstant,Expression.Invoke(errc,bag.Variable)),
-                                    Expression.Assign(bag.Variable,Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray())))
-                                )
-                            ),//fail -error
-                            bag.Variable);
-
-                        return Expression.Invoke(
-                            Expression.Lambda<Func<T,ValidationResult>>(
-                                block,true,
-                                bag.Parameter),
-                            bag.Parameter);
-                        
-                    }
-                    throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.");
-                    
-                default:
-                    throw new ArgumentException($"Unknown link type {link.Type}");
+                    block = CreateNodeExpression(link, next, bag);
                     break;
-            }
-        }
-        //[DebuggerStepThrough]
-        internal static ValidationChain<T> CompileTree<T>(this ValidationChain<T> chain,
-            ValidationFabric<T> fabric)
-        {
-            if (chain.IsCompiled)
-                return chain;
-            
-            var bag=new ExpressionBag<T>();
-            
-
-            Func<T, ValidationResult> expression;
-            if (chain.InvocationChain.Count == 0)
-                expression=x=>ValidationResult.Success;
-            else
-            {
-                var temp =
-                    (chain.InvocationChain[chain.InvocationChain.Count - 1]).CompileLinkExpression(bag.Success, fabric,bag);
-
-                for (int i = chain.InvocationChain.Count - 2; i >= 0; i--)
-                {
-                    temp = (chain.InvocationChain[i]).CompileLinkExpression(temp, fabric,bag);
-                }
-                
-                expression = Expression.Lambda<Func<T, ValidationResult>>(temp,true,bag.Parameter)
-                    .Compile();
-
-
-                
+                case ValidationLink<T>.LinkType.ChainName:
+                    block = CreateChainExpression(link, next, bag, fabric);
+                    break;
+                case ValidationLink<T>.LinkType.OrBranch:
+                    block = CreateLogicalOrExpression(link, next, bag, fabric);
+                    break;
+                case ValidationLink<T>.LinkType.XorBranch:
+                    block = CreateLogicalXorExpression(link, next, bag, fabric);
+                    break;
 
             }
             
-            chain.Compile(expression);
-            return chain;
-        }
-
-
-        private static Expression<Func<T,ValidationResult>> CreateExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
-        {
-            var block = Expression.Block(new ParameterExpression[] {bag.Variable},
-                Expression.IfThenElse(Expression.Invoke(link.Link, bag.Parameter),
-                    Expression.Assign(bag.Variable,Expression.Invoke(next,bag.Parameter)),
-                    Expression.Assign(bag.Variable,
-                        Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray()),typeof(ValidationResult)))
-                    ),
-                bag.Variable
-                );
-
             var lambda = Expression.Lambda<Func<T, ValidationResult>>(block, bag.Parameter);
 
-            //Expression<Func<T, ValidationResult>> expr =
-            //    (e) =>
-            //        link.Link.Compile().Invoke(e)
-            //            ? Expression.Lambda<Func<T, ValidationResult>>(nextLink, bag.Parameter).Compile().Invoke(e)
-            //            : ValidationResult.Failure(link.ErrorMessages.ToArray());
-
+            
             return lambda;
         }
+        [DebuggerStepThrough]
+        private static Expression CreateLogicalOrExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
+        {
+            var link1 = link.Branch.Item1;
+            var link2 = link.Branch.Item2;
 
+            if ((link1.Type==ValidationLink<T>.LinkType.ChainName ||
+               link2.Type==ValidationLink<T>.LinkType.ChainName) &&
+               fabric==null)
+                throw new ArgumentException("Cannot compile a chan that references another chain from the fabric when fabric is null", nameof(fabric));
+
+            var exp1 = CreateExpression(link1, bag.SuccessLambda, bag, fabric);
+            var exp2 = CreateExpression(link2, bag.SuccessLambda, bag, fabric);
+
+            Expression<Func<ValidationResult, int>> errorCount = v =>
+                v.ErrorMessages == null ? 0 : v.ErrorMessages.Count;
+            Expression<Func<ValidationResult,ValidationResult,ValidationResult>> failCombine=
+                (v1,v2)=>ValidationResult.Failure(
+                    Enumerable.Concat(
+                        v1.ErrorMessages??Enumerable.Empty<string>(),
+                        v2.ErrorMessages??Enumerable.Empty<string>()).ToArray());
+
+            var nextInvocation = Expression.Invoke(next,bag.Parameter);
+            /*
+             * var=invoke exp1
+             * var2=success
+             *
+             * if(var==success)
+             *      var=invoke next
+             * else
+             *      var2=invoke exp2
+             *
+             * if(var != success && var2 != success)
+             *      var=var+var2
+             * else
+             *      var=success
+             * return var
+             */
+            return Expression.Block(
+                new ParameterExpression[]
+                {
+                    bag.Variable,
+                    bag.Variable2
+                },
+                Expression.Assign(
+                    bag.Variable2,
+                    bag.Success
+                    ),
+                Expression.Assign(
+                    bag.Variable,
+                    Expression.Invoke(
+                        exp1,
+                        bag.Parameter
+                        )
+                    ),
+                Expression.IfThenElse(
+                    Expression.Equal(
+                        bag.Success,
+                        bag.Variable
+                        ),
+                    Expression.Assign(
+                        bag.Variable,
+                        nextInvocation
+                        ),
+                    Expression.Assign(
+                        bag.Variable2,
+                        Expression.Invoke(
+                            exp2,
+                            bag.Parameter
+                            )
+                        )
+                    ),
+                Expression.IfThenElse(
+                    Expression.AndAlso(
+                        Expression.NotEqual(
+                            bag.Success,
+                            bag.Variable
+                            ),
+                        Expression.NotEqual(
+                            bag.Success,
+                            bag.Variable2
+                            )
+                        ),
+                    Expression.Assign(
+                        bag.Variable,
+                        Expression.Invoke(
+                            failCombine,
+                            bag.Variable,
+                            bag.Variable2
+                            )
+                        ),
+                    Expression.Assign(
+                        bag.Variable,
+                        bag.Success
+                        )
+                    ),
+                Expression.IfThen(
+                    Expression.AndAlso(
+                        Expression.NotEqual(
+                            bag.Success,
+                            bag.Variable),
+                        Expression.Equal(
+                            bag.ZeroConstant,
+                            Expression.Invoke(
+                                errorCount,
+                                bag.Variable)
+                            )
+                    ),
+                    Expression.Assign(
+                        bag.Variable,
+                        Expression.Constant(
+                            ValidationResult.Failure(link.ErrorMessages.ToArray()),
+                            typeof(ValidationResult))
+                    )
+                ),
+                bag.Variable
+            );
+
+            //Expression.IfThen(
+            //    Expression.Equal(
+            //        bag.ZeroConstant,
+            //        Expression.Invoke(
+            //            errorCount,
+            //            bag.Variable)
+            //    ),
+            //    Expression.Assign(
+            //        bag.Variable,
+            //        Expression.Constant(
+            //            ValidationResult.Failure(link.ErrorMessages.ToArray()),
+            //            typeof(ValidationResult))
+            //    )
+            //)
+
+
+        }
+        [DebuggerStepThrough]
+        private static Expression CreateLogicalXorExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
+        {
+            /*
+             * 0 | 0 = 0
+             * 0 | 1 = 1
+             * 1 | 0 = 1
+             * 1 | 1 = 0
+             */
+            var link1 = link.Branch.Item1;
+            var link2 = link.Branch.Item2;
+
+            if ((link1.Type == ValidationLink<T>.LinkType.ChainName ||
+               link2.Type == ValidationLink<T>.LinkType.ChainName) &&
+               fabric == null)
+                throw new ArgumentException("Cannot compile a chan that references another chain from the fabric when fabric is null", nameof(fabric));
+
+            var exp1 = CreateExpression(link1, bag.SuccessLambda, bag, fabric);
+            var exp2 = CreateExpression(link2, bag.SuccessLambda, bag, fabric);
+
+
+            Expression<Func<ValidationResult, ValidationResult, ValidationResult>> failCombine =
+                (v1, v2) => ValidationResult.Failure(
+                    Enumerable.Concat(
+                        v1.ErrorMessages ?? Enumerable.Empty<string>(),
+                        v2.ErrorMessages ?? Enumerable.Empty<string>()).ToArray());
+
+            var nextInvocation = Expression.Invoke(next, bag.Parameter);
+            /*
+             * var=invoke exp1
+             * var2=invoke exp2
+             * if((var==success && var2==success) or (var != success && var2 != success))
+             *      var=fail
+             * else
+             *      var= invoke next
+             * return var
+             *
+             */
+            return Expression.Block(
+                new ParameterExpression[]
+                {
+                    bag.Variable,
+                    bag.Variable2
+                },
+                Expression.Assign(
+                    bag.Variable,
+                    Expression.Invoke(
+                        exp1,
+                        bag.Parameter
+                    )
+                ),
+                Expression.Assign(
+                    bag.Variable2,
+                    Expression.Invoke(
+                        exp2,
+                        bag.Parameter
+                        )
+                    ),
+                Expression.IfThenElse(
+                    Expression.OrElse(
+                        Expression.AndAlso(
+                            Expression.NotEqual(bag.Variable, bag.Success),
+                            Expression.NotEqual(bag.Variable2, bag.Success)),
+                        Expression.AndAlso(
+                            Expression.Equal(bag.Variable,bag.Success),
+                            Expression.Equal(bag.Variable2, bag.Success))),
+                    Expression.Assign(bag.Variable,Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray()),typeof(ValidationResult))),
+                    Expression.Assign(bag.Variable,nextInvocation)),
+                bag.Variable
+            );
+
+        }
+        [DebuggerStepThrough]
+        private static Expression CreateChainExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag, ValidationFabric<T> fabric)
+        {
+            if (fabric == null)
+                throw new ArgumentException("Cannot compile a chan that references another chain from the fabric when fabric is null", nameof(fabric));
+            if (fabric[link.ChainName] is ValidationChain<T> c)
+            {
+                c.CompileRecursive(fabric);
+                Expression<Func<ValidationResult, int>> errorCount = v =>
+                    v.ErrorMessages == null ? 0 : v.ErrorMessages.Count;
+                return Expression.Block(
+                    new ParameterExpression[] { bag.Variable },
+                    Expression.Assign(
+                        bag.Variable,
+                        Expression.Invoke(
+                            c.Expression,
+                            bag.Parameter)
+                        ),
+                    Expression.IfThenElse(
+                        Expression.Equal(
+                            bag.Variable,
+                            bag.Success),
+                        Expression.Assign(
+                            bag.Variable,
+                            Expression.Invoke(
+                                next,
+                                bag.Parameter)
+                            ),
+                        Expression.IfThen(
+                            Expression.Equal(
+                                bag.ZeroConstant,
+                                Expression.Invoke(
+                                    errorCount,
+                                    bag.Variable)
+                                ),
+                            Expression.Assign(
+                                bag.Variable,
+                                Expression.Constant(
+                                    ValidationResult.Failure(link.ErrorMessages.ToArray()),
+                                    typeof(ValidationResult))
+                                )
+                            )
+                        ),
+                    bag.Variable
+                    );
+            }
+            else
+            {
+                throw new ArgumentException($"The chain with the name {link.ChainName} does not exist in the fabric.", nameof(link.ChainName));
+            }
+            
+        }
+        [DebuggerStepThrough]
+        private static BlockExpression CreateNodeExpression<T>(ValidationLink<T> link, Expression next, ExpressionBag<T> bag)
+        {
+            return Expression.Block(new ParameterExpression[] { bag.Variable },
+                Expression.IfThenElse(Expression.Invoke(link.Link, bag.Parameter),
+                    Expression.Assign(bag.Variable, Expression.Invoke(next, bag.Parameter)),
+                    Expression.Assign(bag.Variable,
+                        Expression.Constant(ValidationResult.Failure(link.ErrorMessages.ToArray()), typeof(ValidationResult)))
+                ),
+                bag.Variable
+            );
+        }
+        [DebuggerStepThrough]
         internal static void CompileRecursive<T>(this ValidationChain<T> chain,
             ValidationFabric<T> fabric)
         {
@@ -206,22 +347,26 @@ namespace ValidationFabric
             var bag=new ExpressionBag<T>();
 
 
-
+            //LAST node
             var temp =
-                CreateExpression<T>(chain.InvocationChain[chain.InvocationChain.Count - 1],bag.SuccessLambda,bag,fabric);
+                CreateExpression<T>(
+                    chain.InvocationChain[chain.InvocationChain.Count - 1],
+                    bag.SuccessLambda,
+                    bag,
+                    fabric);
 
             for (int i = chain.InvocationChain.Count - 2; i >= 0; i--)
             {
-                temp = CreateExpression<T>(chain.InvocationChain[i],temp,bag,fabric);
+                //intermediate nodes
+                temp = CreateExpression<T>(
+                    chain.InvocationChain[i],
+                    temp,
+                    bag,
+                    fabric);
             }
 
             chain.Expression = temp;
-
-            //var expression = temp.Compile();
-
-
             
-            //return expression;
 
         }
 

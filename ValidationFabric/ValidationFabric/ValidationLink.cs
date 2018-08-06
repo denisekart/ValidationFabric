@@ -39,7 +39,7 @@ namespace ValidationFabric
 
         public Tuple<ValidationLink<T>, ValidationLink<T>> Branch { get; private set; }
 
-        public ValidationLink<T> WithError(string errorMessage)
+        public ValidationLink<T> AddError(string errorMessage)
         {
             ErrorMessages.Add(errorMessage);
             return this;

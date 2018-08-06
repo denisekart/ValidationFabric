@@ -52,7 +52,7 @@ namespace ValidationFabric
 
         private InvocationDelegate _invocator;
         private Func<T, ValidationResult> _invocatorFunc;
-        public ValidationResult Invoke2(T item)
+        public ValidationResult Invoke(T item)
         {
             if (!IsCompiled)
                 throw new AccessViolationException("This chain has not been compiled yet.");
@@ -69,15 +69,7 @@ namespace ValidationFabric
             //_invocatorFunc = Expression.Compile();
         }
 
-
-
-        [Obsolete]
-        public ValidationResult Invoke(T item)
-        {
-            if (!IsCompiled)
-                throw new AccessViolationException("This chain has not been compiled yet.");
-            return CompiledExpression(item);
-        }
+        
 
         public ValidationChain<T> AddLink(ValidationLink<T> link)
         {
