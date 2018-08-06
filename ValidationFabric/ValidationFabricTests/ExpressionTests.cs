@@ -19,26 +19,26 @@ namespace ValidationFabricTests
         {
             var fab=new ValidationFabric<Test>();
 
-            var chain= new ValidationChain<Test>().AddLink(x => true).AddLink(x=>true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true)
-                .AddLink(x => true).AddLink(x => true).AddLink(x => true).AddLink(x => true);
-            //var chain2 = new ValidationChain<Test>().AddLink(x => true).AddErrorMessage("c101");
-            //fab.AddChain(chain).AddChain(chain2);
+            var chain= new ValidationChain<Test>().Add(x => true).Add(x=>true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true)
+                .Add(x => true).Add(x => true).Add(x => true).Add(x => true);
+            //var chain2 = new ValidationChain<Test>().Add(x => true).AddError("c101");
+            //fab.Add(chain).Add(chain2);
 
             chain.CompileRecursive(fab);
             var res=chain.Invoke(null);
@@ -56,13 +56,13 @@ namespace ValidationFabricTests
         public void RecursiveCompileChainNameLinkTest()
         {
             var fab=new ValidationFabric<Test>();
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c1").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c2").AddLink(x => true).AddChain("c1"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => true).AddChain("c2"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c4").AddLink(x => true).AddChain("c3"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c5").AddLink(x => true).AddChain("c4"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c6").AddLink(x => true).AddChain("c5"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c7").AddLink(x => true).AddChain("c6"));
+            fab.Add(ValidationChain.Create<Test>("c1").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c2").Add(x => true).Add("c1"))
+                .Add(ValidationChain.Create<Test>("c3").Add(x => true).Add("c2"))
+                .Add(ValidationChain.Create<Test>("c4").Add(x => true).Add("c3"))
+                .Add(ValidationChain.Create<Test>("c5").Add(x => true).Add("c4"))
+                .Add(ValidationChain.Create<Test>("c6").Add(x => true).Add("c5"))
+                .Add(ValidationChain.Create<Test>("c7").Add(x => true).Add("c6"));
             fab["c7"].CompileRecursive(fab);
 
             var result=fab["c7"].Invoke(null);
@@ -82,17 +82,17 @@ namespace ValidationFabricTests
         public void RecursiveCompileLogicalOrLinkTest()
         {
             var fab = new ValidationFabric<Test>();
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c1").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c2").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c4").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c5").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c6").AddLink(x => true)
-                    .AddLink(ValidationLink<Test>.Expression(x => true) ^
-                             ValidationLink<Test>.Expression(x => true)))
-                .AddChain(ValidationChain.EmptyChain<Test>("c7").AddLink(x => true)
-                    .AddLink(ValidationLink<Test>.Expression(x=>true) | 
-                             ValidationLink<Test>.Expression(x => true)));
+            fab.Add(ValidationChain.Create<Test>("c1").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c2").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c3").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c4").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c5").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c6").Add(x => true)
+                    .Add(ValidationLink<Test>.Create(x => true) ^
+                             ValidationLink<Test>.Create(x => true)))
+                .Add(ValidationChain.Create<Test>("c7").Add(x => true)
+                    .Add(ValidationLink<Test>.Create(x=>true) | 
+                             ValidationLink<Test>.Create(x => true)));
             //fab["c7"].CompileRecursive(fab);
 
             //var result = fab["c7"].Invoke2(null);
@@ -117,11 +117,11 @@ namespace ValidationFabricTests
         public void FabricSimpleValidation()
         {
             ValidationFabric<object> fabric = new ValidationFabric<object>();
-            fabric["chain0"] = new ValidationChain<object>().AddLink(x => true).AddErrorMessage("c101");
-            fabric["chain1"] = new ValidationChain<object>().AddLink(x => true).AddErrorMessage("c11")
-                .AddLink(x => false);
-            fabric["chain2"] = new ValidationChain<object>().AddLink(x => true).AddChain("chain0")
-                .AddChain("chain1").AddErrorMessage("chainerr");
+            fabric["chain0"] = new ValidationChain<object>().Add(x => true).AddError("c101");
+            fabric["chain1"] = new ValidationChain<object>().Add(x => true).AddError("c11")
+                .Add(x => false);
+            fabric["chain2"] = new ValidationChain<object>().Add(x => true).Add("chain0")
+                .Add("chain1").AddError("chainerr");
 
 
             //c12 c11 c21
@@ -145,29 +145,30 @@ namespace ValidationFabricTests
             };
 
             ValidationFabric<Test> fab = new ValidationFabric<Test>();
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c1").SetMember(x => x.P1).SetCondition(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1")
-                .AddLink(x => x.P2 == "3").AddErrorMessage("P2 is not 3"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c2").SetMember(x => x.P2).AddLink(x => x.P1 == "1")
-                .AddChain("c1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>().SetMember(x => x.P3).AddLink(x => x.P1 == "1").AddChain("c1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("c3").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
-            fab.AddChain(ValidationChain.EmptyChain<Test>("non").SetMember(x => x).SetCondition(x => false).AddLink(x => x.P1 == "1").AddChain("c1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1").AddLink(x => x.P1 == "1"));
+            
+            fab.Add(ValidationChain.Create<Test>("c1").SetMember(x => x.P1).SetCondition(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1")
+                .Add(x => x.P2 == "3").AddError("P2 is not 3"));
+            fab.Add(ValidationChain.Create<Test>("c2").SetMember(x => x.P2).Add(x => x.P1 == "1")
+                .Add("c1"));
+            fab.Add(ValidationChain.Create<Test>().SetMember(x => x.P3).Add(x => x.P1 == "1").Add("c1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("c3").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
+            fab.Add(ValidationChain.Create<Test>("non").SetMember(x => x).SetCondition(x => false).Add(x => x.P1 == "1").Add("c1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1").Add(x => x.P1 == "1"));
             var r01 = fab.Validate(t, x => x.P1);
             var r02 = fab.Validate(t, x => x.P2);
             var r03 = fab.Validate(t, x => x.P3);
@@ -194,8 +195,8 @@ namespace ValidationFabricTests
         //[Fact]
         //public void Foo()
         //{
-        //    ValidationChainCompiler.CreateWrapper<Test>(test => ValidationResult.Success,
-        //        test => ValidationResult.Success, new ValidationChainCompiler.ExpressionBag<Test>());
+        //    ValidationChainExtensions.CreateWrapper<Test>(test => ValidationResult.Success,
+        //        test => ValidationResult.Success, new ValidationChainExtensions.ExpressionBag<Test>());
 
         //}
     }

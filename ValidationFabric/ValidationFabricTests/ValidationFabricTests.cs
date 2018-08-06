@@ -14,18 +14,18 @@ namespace ValidationFabricTests
         public void CreateAndCompileFabricWithAllTypesOfChains()
         {
             ValidationFabric<Test> fabric = new ValidationFabric<Test>()
-                .AddChain(ValidationChain.EmptyChain<Test>("c1").AddLink(x => true))
-                .AddChain(ValidationChain.EmptyChain<Test>("c2").AddChain("c1"))
-                .AddChain(ValidationChain.EmptyChain<Test>("c3")
-                    .AddLink(ValidationLink<Test>.Expression(x => true) | ValidationLink<Test>.Expression(x => true)))
-                .AddChain(ValidationChain.EmptyChain<Test>("c4")
-                    .AddLink(ValidationLink<Test>.Expression(x => true) ^ ValidationLink<Test>.Expression(x => true)))
-                .AddChain(ValidationChain.EmptyChain<Test>("c5")
-                    .AddLink(ValidationLink<Test>.Expression(x => true) ^ ValidationLink<Test>.Expression(x => true)))
-                .AddChain(ValidationChain.EmptyChain<Test>("c6")
-                    .AddLink(ValidationLink<Test>.Expression(x => true) ^ ValidationLink<Test>.Expression(x => true)))
-                .AddChain(ValidationChain.EmptyChain<Test>("c7")
-                    .AddLink(ValidationLink<Test>.Expression(x => true) ^ ValidationLink<Test>.Expression(x => true)));
+                .Add(ValidationChain.Create<Test>("c1").Add(x => true))
+                .Add(ValidationChain.Create<Test>("c2").Add("c1"))
+                .Add(ValidationChain.Create<Test>("c3")
+                    .Add(ValidationLink<Test>.Create(x => true) | ValidationLink<Test>.Create(x => true)))
+                .Add(ValidationChain.Create<Test>("c4")
+                    .Add(ValidationLink<Test>.Create(x => true) ^ ValidationLink<Test>.Create(x => true)))
+                .Add(ValidationChain.Create<Test>("c5")
+                    .Add(ValidationLink<Test>.Create(x => true) ^ ValidationLink<Test>.Create(x => true)))
+                .Add(ValidationChain.Create<Test>("c6")
+                    .Add(ValidationLink<Test>.Create(x => true) ^ ValidationLink<Test>.Create(x => true)))
+                .Add(ValidationChain.Create<Test>("c7")
+                    .Add(ValidationLink<Test>.Create(x => true) ^ ValidationLink<Test>.Create(x => true)));
             fabric.CompileAheadOfTime();
         }
     }

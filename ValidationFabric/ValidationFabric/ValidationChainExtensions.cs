@@ -8,8 +8,10 @@ using System.Reflection.Emit;
 
 namespace ValidationFabric
 {
-    //[DebuggerStepThrough]
-    internal static class ValidationChainCompiler
+    /// <summary>
+    /// Provides extensions for <see cref="ValidationFabric{T}"/>, <see cref="ValidationChain{T}"/> and <see cref="ValidationLink{T}"/> types
+    /// </summary>
+    public static class ValidationChainExtensions
     {
         [DebuggerStepThrough]
         internal class ExpressionBag<T>
@@ -184,16 +186,16 @@ namespace ValidationFabric
                 bag.Variable
             );
 
-            //Expression.IfThen(
-            //    Expression.Equal(
+            //Create.IfThen(
+            //    Create.Equal(
             //        bag.ZeroConstant,
-            //        Expression.Invoke(
+            //        Create.Invoke(
             //            errorCount,
             //            bag.Variable)
             //    ),
-            //    Expression.Assign(
+            //    Create.Assign(
             //        bag.Variable,
-            //        Expression.Constant(
+            //        Create.Constant(
             //            ValidationResult.Failure(link.ErrorMessages.ToArray()),
             //            typeof(ValidationResult))
             //    )
@@ -368,6 +370,32 @@ namespace ValidationFabric
             chain.Expression = temp;
             
 
+        }
+
+        /// <summary>
+        /// Creates a new link combining the left-hand and right-hand link.
+        /// This is a logical OR link type
+        /// </summary>
+        /// <typeparam name="T">the type of model</typeparam>
+        /// <param name="left">left hand side</param>
+        /// <param name="right">right hand side</param>
+        /// <returns>a new OR link</returns>
+        public static ValidationLink<T> Or<T>(this ValidationLink<T> left, ValidationLink<T> right)
+        {
+            return ValidationLink<T>.OrBranch(left, right);
+        }
+
+        /// <summary>
+        /// Creates a new link combining the left-hand and right-hand link.
+        /// This is a logical XOR link type
+        /// </summary>
+        /// <typeparam name="T">the type of model</typeparam>
+        /// <param name="left">left hand side</param>
+        /// <param name="right">right hand side</param>
+        /// <returns>a new XOR link</returns>
+        public static ValidationLink<T> Xor<T>(this ValidationLink<T> left, ValidationLink<T> right)
+        {
+            return ValidationLink<T>.XorBranch(left,right);
         }
 
     }
