@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Security;
+using ValidationFabric.Abstractions;
 
 
 [assembly: AllowPartiallyTrustedCallers]
@@ -39,13 +40,14 @@ namespace ValidationFabric
     /// This is a validation chain for the <see cref="ValidationFabric{T}"/>
     /// </summary>
     /// <typeparam name="T">the type to build the chain for</typeparam>
-    public sealed class ValidationChain<T> : ValidationChain
+    public sealed class ValidationChain<T> : ValidationChain,IValidationChain<T>
     {
 
         internal ValidationChain()
         {   
         }
 
+        public bool CanModify => !IsCompiled;
         /// <summary>
         /// Returns true if the chain has already been compiled.
         /// After the chain is compiled, all modifications are disallowed and will

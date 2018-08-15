@@ -21,6 +21,19 @@ namespace ValidationFabric
         private readonly Dictionary<string, ValidationChain<T>> _chains=new Dictionary<string, ValidationChain<T>>();
         private int _nextIndex = 0;
         private const string AnonymousChainPrefix = "AnonTypedChain_";
+
+        IEnumerable<IValidationChain<T>> IValidationFabric<T>.this[T item, Func<T, object> member]
+        {
+            get => this[item, member];
+            set => this[item, member] = value as IEnumerable<ValidationChain<T>>;
+        }
+
+        IValidationChain<T> IValidationFabric<T>.this[string key]
+        {
+            get => this[key];
+            set => this[key] = value as ValidationChain<T>;
+        }
+
         private string NextKey()
         {
             return $"{AnonymousChainPrefix}{++_nextIndex}";
@@ -244,5 +257,14 @@ namespace ValidationFabric
                 yield return Compile(validationChain);
             }
         }
+
+        IEnumerable<IValidationChain<T>> IValidationFabric<T>.Get()
+            => Get();
+
+        IEnumerable<IValidationChain<T>> IValidationFabric<T>.Get(Func<T, object> member)
+            => Get(member);
+
+        IValidationChain<T> IValidationFabric<T>.Get(string chainName)
+            => Get(chainName);
     }
 }

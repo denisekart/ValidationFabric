@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using ValidationFabric.Abstractions;
 
 namespace ValidationFabric
 {
@@ -10,7 +11,7 @@ namespace ValidationFabric
     /// <see cref="ValidationChain{T}"/>
     /// </summary>
     /// <typeparam name="T">the type of model to associate</typeparam>
-    public class ValidationLink<T>
+    public class ValidationLink<T> : IValidationLink<T>
     {
         /// <summary>
         /// Creates a link with the specified expression. Keep the expression simple.
@@ -57,6 +58,9 @@ namespace ValidationFabric
         /// The branch chain links
         /// </summary>
         public Tuple<ValidationLink<T>, ValidationLink<T>> Branch { get; private set; }
+
+        Tuple<IValidationLink<T>, IValidationLink<T>> IValidationLink<T>.Branch => throw new NotImplementedException();
+
         /// <summary>
         /// Adds an error to this link. Multiple errors can be specified
         /// </summary>
@@ -84,6 +88,12 @@ namespace ValidationFabric
                 Branch = new Tuple<ValidationLink<T>, ValidationLink<T>>(left, right)
             };
         }
+
+        IValidationLink<T> IValidationLink<T>.AddError(string errorMessage)
+        {
+            return AddError(errorMessage);
+        }
+
         /// <summary>
         /// This operator combines the specified links and creates a logical OR link
         /// </summary>

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace ValidationFabric
+namespace ValidationFabric.Abstractions
 {
     public class ValidationResult
     {

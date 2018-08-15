@@ -72,6 +72,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ValidationFabric.Abstractions\ValidationFabric.Abstractions.csproj">
+      <Project>{3345B073-6BF4-40CC-8AF6-83DBC203FE9E}</Project>
+      <Name>ValidationFabric.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ValidationFabric\ValidationFabric.csproj">
       <Project>{2A15A187-3B75-4BC7-B27F-FC288EC4A417}</Project>
       <Name>ValidationFabric</Name>
