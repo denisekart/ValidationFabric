@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Schema;
+using ValidationFabric.Abstractions;
 
 namespace ValidationFabric
 {
@@ -15,7 +16,7 @@ namespace ValidationFabric
     /// The orchestrator class for business type validation of models and/or reposisories
     /// </summary>
     /// <typeparam name="T">the type of model or repository to manage</typeparam>
-    public class ValidationFabric<T>
+    public class ValidationFabric<T> : IValidationFabric<T>
     {
         private readonly Dictionary<string, ValidationChain<T>> _chains=new Dictionary<string, ValidationChain<T>>();
         private int _nextIndex = 0;

@@ -32,7 +32,7 @@ namespace ValidationFabric
         {
             
         }
-        internal enum LinkType
+        public enum LinkType
         {
             Expression,
             ChainName,
